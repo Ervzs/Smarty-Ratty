@@ -1,4 +1,4 @@
-from index import get_maze, get_wall_rects, get_maze_dimensions, get_state_from_pos, get_pos_from_state
+from index import get_maze_dimensions
 import numpy as np
 
 
