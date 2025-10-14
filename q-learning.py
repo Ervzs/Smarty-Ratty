@@ -1,8 +1,7 @@
 from index import get_maze, get_wall_rects, get_maze_dimensions, get_state_from_pos, get_pos_from_state
 import numpy as np
 
-maze = get_maze()
-wall_rects = get_wall_rects()
+
 maze_rows, maze_cols = get_maze_dimensions()
 
 alpha = 0.9

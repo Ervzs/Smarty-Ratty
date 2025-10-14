@@ -3,7 +3,11 @@ import pygame
 import numpy as np
 
 # Global variables for maze setup
+screen = pygame.display.set_mode((700, 500))
+
 unitSize = 100
+mousePos = pygame.Vector2(unitSize / 4, unitSize / 4)
+
 maze = np.array([
     ['S', '#', '.', '.', '.', '.', '.'],
     ['.', '.', '.', '#', '#', '#', '.'],
@@ -11,9 +15,10 @@ maze = np.array([
     ['.', '.', '.', '#', '.', '#', '#'],
     ['.', '#', '.', '.', '.', '.', 'C']
 ])
+
 maze_rows, maze_cols = maze.shape
 
-# Discretization functions (can be imported by other files)
+# Discretization functions
 def get_state_from_pos(mouse_pos):
     """Converts pixel coordinates to a single state number."""
     col = int(mouse_pos.x // unitSize)
@@ -33,8 +38,6 @@ def get_pos_from_state(state):
     return pygame.Vector2(x, y)
 
 # Export functions for other modules
-def get_maze():
-    return maze
 
 def get_wall_rects():
     wall_rects = []
@@ -49,60 +52,50 @@ def get_wall_rects():
 def get_maze_dimensions():
     return maze_rows, maze_cols
 
-def get_unit_size():
-    return unitSize
+#To visualize
+def drawGrid():
+    x = 0
+    y = 0
+    screenWidth = screen.get_width()
+    screenHeight = screen.get_height()
+    #For Vertical Lines
+    while (x < screenWidth):
+        pygame.draw.line(screen, "black", (x, 0), (x, screenHeight))
+        x += unitSize
+
+    #For Horizontal Lines
+    while (y < screenHeight):
+        pygame.draw.line(screen, "black", (0, y), (screenWidth, y))
+        y += unitSize
+
+#Added visuals for the np maze 
+def drawMap():
+    for row_idx, row in enumerate(maze):
+        for col_idx, cell in enumerate(row):
+            x = col_idx * unitSize
+            y = row_idx * unitSize
+            match cell:
+                case 'S':
+                    pygame.draw.rect(screen, "green", (x, y, unitSize, unitSize))
+                case 'C':
+                    pygame.draw.rect(screen, "yellow", (x, y, unitSize, unitSize))
+                case '#':
+                    pygame.draw.rect(screen, "black", (x, y, unitSize, unitSize))
+                case '.':
+                    pygame.draw.rect(screen, "white", (x, y, unitSize, unitSize))
 
 # pygame setup
-
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((700, 500))
-    pygame.font.init()  # Initialize font system
-    font = pygame.font.Font(None, 36)  # Create font for text display
     clock = pygame.time.Clock()
     running = True
     dt = 0
-    mousePos = pygame.Vector2(unitSize / 4, unitSize / 4)
-
+    
     # Get maze dimensions for state calculations
     total_states = maze_rows * maze_cols  # This will be 35 states (5 rows × 7 cols)
 
-    # Test the discretization (you can remove this later)
-    current_state = get_state_from_pos(mousePos)
-    print(f"Mouse starting at pixel ({mousePos.x}, {mousePos.y}) = State {current_state}")
-
+    # Needed to not make the mouse pass through walls
     wall_rects = get_wall_rects()
-
-    #To visualize
-    def drawGrid():
-        x = 0
-        y = 0
-        screenWidth = screen.get_width()
-        screenHeight = screen.get_height()
-        #For Vertical Lines
-        while (x < screenWidth):
-            pygame.draw.line(screen, "black", (x, 0), (x, screenHeight))
-            x += unitSize
-
-        #For Horizontal Lines
-        while (y < screenHeight):
-            pygame.draw.line(screen, "black", (0, y), (screenWidth, y))
-            y += unitSize
-
-    def drawMap():
-        for row_idx, row in enumerate(maze):
-            for col_idx, cell in enumerate(row):
-                x = col_idx * unitSize
-                y = row_idx * unitSize
-                match cell:
-                    case 'S':
-                        pygame.draw.rect(screen, "green", (x, y, unitSize, unitSize))
-                    case 'C':
-                        pygame.draw.rect(screen, "yellow", (x, y, unitSize, unitSize))
-                    case '#':
-                        pygame.draw.rect(screen, "black", (x, y, unitSize, unitSize))
-                    case '.':
-                        pygame.draw.rect(screen, "white", (x, y, unitSize, unitSize))
 
     # Track current state for comparison
     previous_state = get_state_from_pos(mousePos)
@@ -114,8 +107,6 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        # fill the screen with a color to wipe away anything from last frame
-        screen.fill("white")
         drawMap()
 
         # Get current state and check if it changed
@@ -129,20 +120,6 @@ def main():
 
         # RENDER YOUR GAME HERE
         pygame.draw.rect(screen, "gray", (mousePos.x, mousePos.y, 50, 50))
-        
-        # Display current state information on screen
-        row = current_state // maze_cols
-        col = current_state % maze_cols
-        cell_type = maze[row][col]
-        
-        state_text = f"State: {current_state} | Grid: ({row},{col}) | Cell: '{cell_type}'"
-        text_surface = font.render(state_text, True, (255, 0, 0))  # Red text
-        screen.blit(text_surface, (10, 10))  # Position at top-left
-        
-        # Also display pixel coordinates
-        coord_text = f"Pixel: ({int(mousePos.x)}, {int(mousePos.y)})"
-        coord_surface = font.render(coord_text, True, (0, 0, 255))  # Blue text
-        screen.blit(coord_surface, (10, 50))  # Position below state info
         
 
         keys = pygame.key.get_pressed()
