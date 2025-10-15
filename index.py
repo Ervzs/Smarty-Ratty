@@ -139,6 +139,12 @@ def main():
     episode_time_limit = 20000  # 20 seconds in milliseconds
     episode_start_time = pygame.time.get_ticks()  # Track when episode started
 
+    # === EPISODE METRICS TRACKING ===
+    # These variables track performance metrics for each episode
+    episode_reward_sum = 0  # Sum of all rewards received in current episode
+    episode_q_updates = 0   # Count how many times Q-table was updated
+    episode_q_change_sum = 0  # Sum of all Q-value changes (to calculate average)
+
     # Reset position for each episode
     start_pos_coords = np.argwhere(maze == 'S')[0]
     start_row, start_col = start_pos_coords
@@ -327,12 +333,43 @@ def main():
                 continue  # Skip the rest of this frame and start fresh
             
             #UPDATE Q-TABLE
+            old_q_value = q_table[state, action]  # Store old Q-value before update
             update_q_table(state, action, reward, new_state)
+            new_q_value = q_table[state, action]  # Get new Q-value after update
+            
+            # Track metrics for this episode
+            episode_reward_sum += reward  # Add reward to episode total
+            episode_q_updates += 1  # Count this Q-table update
+            q_change = abs(new_q_value - old_q_value)  # Calculate how much Q-value changed
+            episode_q_change_sum += q_change  # Add to sum for averaging later
 
                 
         # Reset for next episode (happens when goal is reached OR 20 seconds pass)
         # Update epsilon after each episode to make AI more confident over time
         if episode_done:
+            # === PRINT EPISODE METRICS ===
+            # Calculate average Q-value change for this episode
+            avg_q_change = episode_q_change_sum / episode_q_updates if episode_q_updates > 0 else 0
+            
+            print("\n" + "="*60)
+            print(f"EPISODE {current_episode} SUMMARY:")
+            print("="*60)
+            print(f"Total Reward: {episode_reward_sum:.2f}")
+            print(f"  → EXPECTED: Should gradually INCREASE over time as AI learns better paths")
+            print(f"  → Positive values = good episode, Negative = poor performance")
+            print(f"\nQ-Table Updates: {episode_q_updates}")
+            print(f"  → EXPECTED: Should be high initially (lots of learning)")
+            print(f"  → Should DECREASE as AI finds optimal path faster")
+            print(f"\nAverage Q-Value Change: {avg_q_change:.6f}")
+            print(f"  → EXPECTED: Should START HIGH (0.1-1.0) as AI learns")
+            print(f"  → Should DECREASE over time (approaching 0.001-0.01) as Q-values converge")
+            print(f"  → Low values = AI is confident in its learned policy")
+            print(f"\nEpsilon (Exploration Rate): {epsilon:.4f}")
+            print(f"  → EXPECTED: Should gradually DECREASE from 1.0 to {min_epsilon}")
+            print(f"  → Lower = more exploitation of learned knowledge")
+            print("="*60 + "\n")
+
+
             current_episode += 1
             epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-epsilon_decay_rate * current_episode)
             
@@ -347,9 +384,10 @@ def main():
             main.state_time_tracker = {'state': get_state_from_pos(mousePos), 'frames': 0}
             main.state_visit_count = {}
 
-            # Print progress every 2 episodes
-            if current_episode % 2 == 0:
-                print(f"Episode: {current_episode}, Epsilon: {epsilon:.4f}")
+            # Reset episode metrics for next episode
+            episode_reward_sum = 0
+            episode_q_updates = 0
+            episode_q_change_sum = 0
 
         # flip() the display to put your work on screen
         pygame.display.flip()
