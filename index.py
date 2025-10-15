@@ -133,9 +133,11 @@ def main():
     running = True
     global epsilon
 
-    current_episode = 0
-    total_episodes = 25000 # Let the AI train for many attempts
     
+    # Timer for each episode (20 seconds = 20000 milliseconds)
+    current_episode = 0
+    episode_time_limit = 20000  # 20 seconds in milliseconds
+    episode_start_time = pygame.time.get_ticks()  # Track when episode started
 
     # Reset position for each episode
     start_pos_coords = np.argwhere(maze == 'S')[0]
@@ -176,6 +178,15 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+        # Check if 20 seconds have passed for this episode
+        current_time = pygame.time.get_ticks()
+        time_elapsed = current_time - episode_start_time
+        
+        # If 20 seconds passed, force episode reset
+        if time_elapsed >= episode_time_limit:
+            episode_done = True
+            print(f"Episode {current_episode}: Time limit reached (20 seconds)")
+
         screen.fill("white")
 
         drawMap()
@@ -190,7 +201,7 @@ def main():
             print(f"State changed: {previous_state} -> {current_state} (Row: {row}, Col: {col}, Cell: '{cell_type}')")
             previous_state = current_state
 
-        if current_episode < total_episodes and not episode_done:
+        if not episode_done:
             # First get the current state
             state = get_state_from_pos(mousePos)
             # Then choose an action
@@ -269,8 +280,6 @@ def main():
             # 4. Closer to the goal reward AI
             elif (current_row, current_col) in closer_states:
                 reward += 10
-                # Heavy penalty to discourage exploring dead ends
-
             else:
                 reward -= 0.1
 
@@ -304,8 +313,8 @@ def main():
                 # Reset counter when we move to a new state
                 main.state_time_tracker = {'state': new_state, 'frames': 0}
             
+
             # If stuck in same state for ~10 seconds (600 frames at 60 FPS)
-           
             if main.state_time_tracker['frames'] > 600:
                 reward -= 20  # Heavy penalty for being stuck
                 print(f"Episode {current_episode}: Stuck too long, restarting...")
@@ -321,9 +330,8 @@ def main():
             update_q_table(state, action, reward, new_state)
 
                 
-            # Reset for next episode
-            # Update epsilon after each episode
-            # This makes the AI more confident over time
+        # Reset for next episode (happens when goal is reached OR 20 seconds pass)
+        # Update epsilon after each episode to make AI more confident over time
         if episode_done:
             current_episode += 1
             epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-epsilon_decay_rate * current_episode)
@@ -331,11 +339,16 @@ def main():
             # Reset position
             mousePos = pygame.Vector2(start_col * unitSize + unitSize // 2, start_row * unitSize + unitSize // 2)
             episode_done = False
+
+            # Reset episode timer for new episode
+            episode_start_time = pygame.time.get_ticks()
             
+            # Reset state trackers
             main.state_time_tracker = {'state': get_state_from_pos(mousePos), 'frames': 0}
             main.state_visit_count = {}
 
-            if current_episode % 1000 == 0:
+            # Print progress every 2 episodes
+            if current_episode % 2 == 0:
                 print(f"Episode: {current_episode}, Epsilon: {epsilon:.4f}")
 
         # flip() the display to put your work on screen
