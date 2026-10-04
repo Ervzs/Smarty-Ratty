@@ -34,14 +34,15 @@ pip install numpy pygame
 python index.py
 ```
 
+In the window you watch every episode live. **↑ / ↓** double/halve the speed, **Esc** quits.
+
 Options:
 
-| Flag          | Effect                                                            |
-| :------------ | :---------------------------------------------------------------- |
-| `--seed N`    | Make training reproducible.                                       |
-| `--no-window` | Train and print the learned path in the terminal only (no Pygame). |
+| Flag       | Effect                                      |
+| :--------- | :------------------------------------------ |
+| `--seed N` | Make training reproducible.                 |
 
-In the window: **R** replays, **Esc** (or closing the window) quits.
+**Want to skip the animation?** In `main()` of `index.py`, comment out `train(screen, font)` and uncomment `train()` to run all 2000 episodes instantly, then watch the learned path.
 
 > On very new Python versions (e.g. 3.14) `pygame` may have no prebuilt wheel yet. Use `pip install pygame-ce` instead; it is a drop-in replacement.
 
@@ -49,30 +50,19 @@ In the window: **R** replays, **Esc** (or closing the window) quits.
 
 ## 👀 What You'll See
 
-**1. Training log** (printed in the terminal, in 100-episode blocks):
+The window shows the mouse moving one cell at a time, with a status bar: episode number, step, total reward so far and epsilon. The terminal prints one summary line per episode:
 
 ```
- episode  avg reward  avg steps  success  epsilon  avg |dQ|
-     100      -111.6       73.8      86%    0.610    0.4916
-     300        78.5       14.5     100%    0.231    0.0336
-     500        87.1       11.3     100%    0.091    0.0024
-    1000        90.7       10.2     100%    0.017    0.0001
-    2000        90.7       10.1     100%    0.010    0.0001
+Episode 1: timeout in 200 steps, reward -636, epsilon 0.995
+Episode 300: cheese in 14 steps, reward 87, epsilon 0.231
+Episode 2000: cheese in 10 steps, reward 91, epsilon 0.010
 ```
 
-How to read it: if learning works, **avg reward rises**, **avg steps falls toward 10** (the shortest path), **success reaches 100%**, **epsilon decays** and **avg |dQ|** (how much the Q-table is still changing) shrinks toward 0 as it converges.
+If learning works, **steps fall toward 10** (the shortest path), **reward rises toward ~91**, and **epsilon decays** from 1.0 to 0.01. Once all episodes finish, the mouse runs the learned path with no random moves and the terminal prints it.
 
-**2. Verdict:** the greedy path the mouse follows after training, and whether it reached the cheese.
-
-**3. Pygame window:**
-* *Before training:* the mouse wanders randomly.
-* *After training:* the mouse walks the learned path. Red arrows show the best action the mouse learned for each cell.
-
-| Before training (random moves) | After training (learned path) |
-| :----------------------------: | :---------------------------: |
-| ![Before training](docs/before-training.png) | ![After training](docs/after-training.png) |
-
-Arrows in cells off the main route (for example the top row) point wherever the mouse happened to learn last; it rarely visits them once it has found the shortest path, so they don't affect the result.
+| Episode 1 (random) | Episode 300 (learning) | After training |
+| :----------------: | :--------------------: | :------------: |
+| ![Episode 1](docs/episode-1.png) | ![Episode 300](docs/episode-300.png) | ![Learned path](docs/learned-path.png) |
 
 ---
 
@@ -128,15 +118,15 @@ Everything is in `index.py`, top to bottom:
 | `step(state, action)` | The environment: applies a move and returns `(new_state, reward, done)`. |
 | `choose_action()` / `greedy_action()` | Epsilon-greedy policy. Ties are broken randomly, so an untrained row isn't biased toward "UP". |
 | `update_q_table(...)` | The Bellman update. |
-| `train()` | Runs all episodes with no rendering and prints the training log. |
-| `run_greedy()` / `run_random()` | Follow the learned policy, or move randomly, for the demo. |
-| `visualize(...)` | The Pygame replay: maze, mouse animation, and policy arrows. |
+| `train(screen, font)` | Runs all episodes. With a screen it draws every step; without one it runs instantly. |
+| `run_greedy()` | Follows the learned policy (no randomness) and returns the path. |
+| `draw()` | Draws the maze, mouse and status bar for one frame; handles the speed keys. |
 
 ---
 
 ## 🔧 Tuning the Parameters
 
-All at the top of `index.py`. Try changing them and re-reading the training log:
+All at the top of `index.py`. Try changing them and watching the episode log:
 
 | Parameter | Default | Effect |
 | :-------- | :-----: | :----- |
