@@ -3,17 +3,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-A small, visual reinforcement-learning project. A mouse starts with zero knowledge of a maze and learns, by trial and error with **Q-learning**, the shortest route to the cheese. Training takes about a second, then a Pygame window shows the mouse before and after learning.
+A small, visual reinforcement-learning project. A mouse starts with zero knowledge of a maze and learns by trial and error with **Q-learning**. A Pygame window shows every move live, episode after episode, so you can watch it make mistakes and learn from them. Every run is different.
 
 ```
  S # . . . . .        S = start     C = cheese
  . . . # # # .        # = wall      . = open cell
  . # # . . # .
- . . . # . # .        Learned path (10 steps, the optimal one):
- . # . . . . C        (0,0) ↓ ↓ ↓ (3,0) → → (3,2) ↓ (4,2) → → → → (4,6)
+ . . . # . # .
+ . # . . . . C
 ```
 
-The maze has two routes on purpose: a short one along the bottom (10 steps) and a long one across the top and down the right side (12 steps). The mouse has to discover that the bottom route is shorter. The open pocket in the middle is a dead end that only wastes moves.
+The maze has two routes on purpose: a short one along the bottom (10 steps) and a long one across the top and down the right side (12 steps). The open pocket in the middle is a dead end that only wastes moves.
 
 ---
 
@@ -30,39 +30,27 @@ The maze has two routes on purpose: a short one along the bottom (10 steps) and 
 ## 🚀 Quick Start
 
 ```bash
-pip install numpy pygame
+pip install numpy pygame-ce
 python index.py
 ```
 
-In the window you watch every episode live. **↑ / ↓** double/halve the speed, **Esc** quits.
+Training runs until you press **Esc** or close the window.
 
-Options:
-
-| Flag       | Effect                                      |
-| :--------- | :------------------------------------------ |
-| `--seed N` | Make training reproducible.                 |
-
-**Want to skip the animation?** In `main()` of `index.py`, comment out `train(screen, font)` and uncomment `train()` to run all 2000 episodes instantly, then watch the learned path.
-
-> On very new Python versions (e.g. 3.14) `pygame` may have no prebuilt wheel yet. Use `pip install pygame-ce` instead; it is a drop-in replacement.
+> `pygame-ce` is the community edition of `pygame` and a drop-in replacement; the code still says `import pygame`. Plain `pygame` has no prebuilt wheel for Python 3.14.
 
 ---
 
 ## 👀 What You'll See
 
-The window shows the mouse moving one cell at a time, with a status bar: episode number, step, total reward so far and epsilon. The terminal prints one summary line per episode:
+![The window](docs/window.png)
+
+The mouse (gray square) moves one cell per frame, 10 frames per second. The status line shows the episode, step, reward so far and epsilon. Each episode ends when the mouse reaches the cheese or after 10 seconds. The terminal prints one line per episode:
 
 ```
-Episode 1: cheese in 112 steps, reward -243, epsilon 0.995
-Episode 300: cheese in 10 steps, reward 91, epsilon 0.231
-Episode 2000: cheese in 10 steps, reward 91, epsilon 0.010
+Episode <number>: <cheese or timeout> in <moves> steps, reward <points>, epsilon <value>
 ```
 
-If learning works, **steps fall toward 10** (the shortest path), **reward rises toward ~91**, and **epsilon decays** from 1.0 to 0.01. Once all episodes finish, the mouse runs the learned path with no random moves and the terminal prints it.
-
-| Episode 1 (random) | Episode 300 (learning) | After training |
-| :----------------: | :--------------------: | :------------: |
-| ![Episode 1](docs/episode-1.png) | ![Episode 300](docs/episode-300.png) | ![Learned path](docs/learned-path.png) |
+When you press Esc, the terminal prints a short summary: the episode it stopped in, epsilon, the learning rate, the discount factor and the rewards.
 
 ---
 
@@ -76,7 +64,7 @@ If learning works, **steps fall toward 10** (the shortest path), **reward rises 
 | **State**   | Which maze cell the mouse is in (35 states for the 7×5 maze).                   |
 | **Action**  | Move one cell **UP, DOWN, LEFT or RIGHT**.                                      |
 | **Reward**  | See below.                                                                      |
-| **Episode** | One attempt from the start cell until the cheese is found or 200 steps pass.    |
+| **Episode** | One attempt from the start cell until the cheese is found or 10 seconds pass.   |
 
 ### Rewards
 
@@ -90,7 +78,7 @@ There is deliberately **no hint** about where the cheese or the dead ends are. T
 
 ### The Q-Table
 
-A table with one **row per state** and one **column per action**. Each entry, the **Q-value**, estimates the total future reward of taking that action in that state. It starts as all zeros, and training fills it in until the best action in each cell points along the shortest route.
+A table with one **row per state** and one **column per action**. Each entry, the **Q-value**, estimates the total future reward of taking that action in that state. It starts as all zeros and training fills it in.
 
 ### The Learning Loop
 
@@ -102,8 +90,8 @@ A table with one **row per state** and one **column per action**. Each entry, th
    Q(s, a) ← Q(s, a) + α · ( reward + γ · max Q(s', ·) − Q(s, a) )
    ```
 
-   Each update pulls the old estimate toward "reward now + best value I expect from the next cell". Repeated thousands of times, the cheese's +100 propagates backwards along the path, one cell per pass. At the terminal (cheese) state there is no future value, so the `γ · max Q` term is dropped.
-4. **Repeat** for 2000 episodes.
+   Each update pulls the old estimate toward "reward now + best value I expect from the next cell". Repeated many times, the cheese's +100 spreads backwards along the path, one cell per update. At the terminal (cheese) state there is no future value, so the `γ · max Q` term is dropped.
+4. **Repeat**, episode after episode, until you press Esc.
 
 ---
 
@@ -114,29 +102,29 @@ Everything is in `index.py`, top to bottom:
 | Piece | What it does |
 | :---- | :----------- |
 | `maze`, `unitSize` | The map (NumPy array) and the pixel size of one cell for drawing. |
-| Hyperparameters & rewards | `learning_rate`, `discount_factor`, `epsilon_*`, `num_episodes`, `max_steps`, `REWARD_*`. |
+| Settings & rewards | `learning_rate`, `discount_factor`, `epsilon_*`, `episode_time_limit`, `FPS`, `REWARD_*`. |
 | `step(state, action)` | The environment: applies a move and returns `(new_state, reward, done)`. |
 | `choose_action()` / `greedy_action()` | Epsilon-greedy policy. Ties are broken randomly, so an untrained row isn't biased toward "UP". |
 | `update_q_table(...)` | The Bellman update. |
-| `train(screen, font)` | Runs all episodes. With a screen it draws every step; without one it runs instantly. |
-| `run_greedy()` | Follows the learned policy (no randomness) and returns the path. |
-| `draw()` | Draws the maze, mouse and status bar for one frame; handles the speed keys. |
+| `draw()` | Draws one frame (maze, mouse, status line) and waits so frames come at `FPS`. |
+| `train(screen, font)` | Runs episodes until you quit, drawing every move. |
+| `main()` | Opens the window, trains, and prints the summary when you stop. |
 
 ---
 
 ## 🔧 Tuning the Parameters
 
-All at the top of `index.py`. Try changing them and watching the episode log:
+All at the top of `index.py`. Change one, run it, and watch what's different:
 
 | Parameter | Default | Effect |
 | :-------- | :-----: | :----- |
+| `FPS` | `10` | Frames (moves) per second. Raise it to watch faster. |
+| `episode_time_limit` | `10` | Seconds per episode before it counts as a timeout. |
 | `learning_rate` (α) | `0.1` | Higher learns faster but is noisier; lower is steadier but slower. |
 | `discount_factor` (γ) | `0.95` | Closer to 1 makes the mouse value the distant cheese more. Too low and the +100 fades before it reaches the start. |
-| `epsilon_decay_rate` | `0.005` | Higher stops exploring sooner. Too high and it may lock in a bad path; too low wastes episodes. |
+| `epsilon_decay_rate` | `0.05` | How fast random moves fade, per episode. |
 | `min_epsilon` | `0.01` | Exploration floor. |
-| `num_episodes` | `2000` | Plenty for this maze; it settles on the 10-step path in roughly 600. |
-| `max_steps` | `200` | Cut-off that ends an episode in which the mouse wanders too long. |
-| `REWARD_*` | `100 / -1 / -5` | Reshaping rewards changes behavior. Try `REWARD_STEP = 0`: with no cost per move, some runs settle on the 12-step top route instead of the 10-step one. |
+| `REWARD_*` | `100 / -1 / -5` | Reshaping rewards changes behavior. Try `REWARD_STEP = 0` and watch what changes. |
 
 You can also edit the `maze` array to design your own, as long as `S` and `C` are connected.
 
