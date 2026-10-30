@@ -1,9 +1,5 @@
 # AI Smart Mouse: Q-learning maze solver.
-# Watch the mouse learn episode by episode, then watch it run the learned path.
-#
-# Usage:  python index.py [--seed N]
-# Window keys: UP/DOWN = faster/slower, Esc = quit
-import sys
+# Watch the mouse learn, episode after episode, until you press Esc or close the window.
 import numpy as np
 import pygame
 
@@ -31,10 +27,10 @@ learning_rate = 0.1        # alpha: how quickly new information overrides old
 discount_factor = 0.95     # gamma: how much future rewards matter
 max_epsilon = 1.0          # start fully random
 min_epsilon = 0.01         # never stop exploring completely
-epsilon_decay_rate = 0.005 # per episode; epsilon is ~0.02 by episode 1000
+epsilon_decay_rate = 0.05  # per episode; epsilon is ~0.09 by episode 50
 
-num_episodes = 2000
-max_steps = 200            # an episode that takes longer than this counts as a failure
+episode_time_limit = 10    # seconds; an episode that takes longer counts as a timeout
+FPS = 10                   # frames per second; the mouse makes one move per frame
 
 # --- Rewards ---
 REWARD_CHEESE = 100
@@ -90,20 +86,14 @@ def update_q_table(state, action, reward, new_state, done):
     q_table[state, action] = new_value
 
 
-speed = 20  # mouse steps per second in the window
 clock = pygame.time.Clock()
 
 
 def draw(screen, font, state, text):
-    """Draws one frame and waits one tick. Returns False if the user quit."""
-    global speed
+    """Draws one frame. Returns False if the user quit."""
     for event in pygame.event.get():
         if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
             return False
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-            speed = min(speed * 2, 1000)
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-            speed = max(speed // 2, 1)
 
     colors = {'S': "green", 'C': "yellow", '#': "black", '.': "white"}
     for row in range(maze_rows):
@@ -113,74 +103,50 @@ def draw(screen, font, state, text):
             pygame.draw.rect(screen, "gray80", rect, 1)
     pos = cell_center(*state_to_cell(state))
     pygame.draw.rect(screen, "gray40", pygame.Rect(0, 0, 50, 50).move(pos.x - 25, pos.y - 25), border_radius=10)
-    label = font.render(f"{text}   speed {speed}/s", True, "white", "black")
+    label = font.render(text, True, "white", "black")
     screen.blit(label, (8, maze_rows * unitSize - label.get_height() - 8))
     pygame.display.flip()
-    clock.tick(speed)
+    clock.tick(FPS)
     return True
 
 
-def train(screen=None, font=None):
-    """Trains for num_episodes. With a screen, shows every step; without one, runs instantly.
-    Returns False if the user closed the window."""
-    for episode in range(1, num_episodes + 1):
+def train(screen, font):
+    """Trains until the user quits. Returns the episode and epsilon at that moment."""
+    episode = 0
+    while True:
+        episode += 1
         epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-epsilon_decay_rate * episode)
         state, total_reward, done, steps = start_state, 0, False, 0
+        start_time = pygame.time.get_ticks()
 
-        while not done and steps < max_steps:
+        while not done and pygame.time.get_ticks() - start_time < episode_time_limit * 1000:
             action = choose_action(state, epsilon)
             new_state, reward, done = step(state, action)
             update_q_table(state, action, reward, new_state, done)
             state = new_state
             total_reward += reward
             steps += 1
-            if screen and not draw(screen, font, state, f"Episode {episode}/{num_episodes}  step {steps}  "
-                                                        f"reward {total_reward:.0f}  epsilon {epsilon:.2f}"):
-                return False
+            if not draw(screen, font, state, f"Episode {episode}  step {steps}  "
+                                             f"reward {total_reward:.0f}  epsilon {epsilon:.2f}"):
+                return episode, epsilon
 
         print(f"Episode {episode}: {'cheese' if done else 'timeout'} in {steps} steps, "
               f"reward {total_reward:.0f}, epsilon {epsilon:.3f}")
-    return True
-
-
-def run_greedy(screen=None, font=None):
-    """Follows the learned policy from the start. Returns (list of states visited, reached_cheese).
-    reached_cheese is None if the user closed the window."""
-    state, path = start_state, [start_state]
-    for _ in range(max_steps):
-        state, _, done = step(state, greedy_action(state))
-        path.append(state)
-        if screen and not draw(screen, font, state, "Learned path (no random moves)"):
-            return path, None
-        if done:
-            return path, True
-    return path, False
 
 
 def main():
-    if "--seed" in sys.argv:
-        np.random.seed(int(sys.argv[sys.argv.index("--seed") + 1]))
-
     pygame.init()
     screen = pygame.display.set_mode((maze_cols * unitSize, maze_rows * unitSize))
     pygame.display.set_caption("AI Smart Mouse")
     font = pygame.font.Font(None, 28)
 
-    # To skip the animation and jump straight to all 2000 episodes, comment out the next line
-    # and uncomment the one after it.
-    if not train(screen, font):
-        return
-    # train()
-
-    path, reached = run_greedy(screen, font)
-    if reached is None:
-        return
-    print("\n" + ("Reached the cheese" if reached else "Did NOT reach the cheese") + f" in {len(path) - 1} steps (optimal is 10):")
-    print(" -> ".join(str(state_to_cell(s)) for s in path))
-
-    while draw(screen, font, path[-1], "Done. Esc to quit"):
-        pass
+    episode, epsilon = train(screen, font)
     pygame.quit()
+
+    print(f"\nStopped during episode {episode}")
+    print(f"Epsilon (chance of a random move): {epsilon:.3f}")
+    print(f"Learning rate: {learning_rate}   Discount factor: {discount_factor}")
+    print(f"Rewards: cheese {REWARD_CHEESE}, step {REWARD_STEP}, bump {REWARD_BUMP}")
 
 
 if __name__ == "__main__":
