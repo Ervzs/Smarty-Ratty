@@ -9,11 +9,11 @@ A small, visual reinforcement-learning project. A mouse starts with zero knowled
  S # . . . . .        S = start     C = cheese
  . . . # # # .        # = wall      . = open cell
  . # # . . # .
- . . . # . # #        Learned path (10 steps, the optimal one):
- . # . . . . C        (0,0) ↓ ↓ ↓ ↓ (3,0) → → (3,2) ↓ (4,2) → → → → (4,6)
+ . . . # . # .        Learned path (10 steps, the optimal one):
+ . # . . . . C        (0,0) ↓ ↓ ↓ (3,0) → → (3,2) ↓ (4,2) → → → → (4,6)
 ```
 
-The maze has a trap on purpose: the top-right route looks promising but ends in a dead end at `(2,6)`, so the mouse has to discover that going down and around is the only way.
+The maze has two routes on purpose: a short one along the bottom (10 steps) and a long one across the top and down the right side (12 steps). The mouse has to discover that the bottom route is shorter. The open pocket in the middle is a dead end that only wastes moves.
 
 ---
 
@@ -53,8 +53,8 @@ Options:
 The window shows the mouse moving one cell at a time, with a status bar: episode number, step, total reward so far and epsilon. The terminal prints one summary line per episode:
 
 ```
-Episode 1: timeout in 200 steps, reward -636, epsilon 0.995
-Episode 300: cheese in 14 steps, reward 87, epsilon 0.231
+Episode 1: cheese in 112 steps, reward -243, epsilon 0.995
+Episode 300: cheese in 10 steps, reward 91, epsilon 0.231
 Episode 2000: cheese in 10 steps, reward 91, epsilon 0.010
 ```
 
@@ -134,9 +134,9 @@ All at the top of `index.py`. Try changing them and watching the episode log:
 | `discount_factor` (γ) | `0.95` | Closer to 1 makes the mouse value the distant cheese more. Too low and the +100 fades before it reaches the start. |
 | `epsilon_decay_rate` | `0.005` | Higher stops exploring sooner. Too high and it may lock in a bad path; too low wastes episodes. |
 | `min_epsilon` | `0.01` | Exploration floor. |
-| `num_episodes` | `2000` | Plenty for this maze; it converges in roughly 500. |
+| `num_episodes` | `2000` | Plenty for this maze; it settles on the 10-step path in roughly 600. |
 | `max_steps` | `200` | Cut-off that ends an episode in which the mouse wanders too long. |
-| `REWARD_*` | `100 / -1 / -5` | Reshaping rewards changes behavior. Try `REWARD_STEP = 0` and watch the paths get lazier. |
+| `REWARD_*` | `100 / -1 / -5` | Reshaping rewards changes behavior. Try `REWARD_STEP = 0`: with no cost per move, some runs settle on the 12-step top route instead of the 10-step one. |
 
 You can also edit the `maze` array to design your own, as long as `S` and `C` are connected.
 
