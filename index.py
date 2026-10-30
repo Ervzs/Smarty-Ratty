@@ -82,16 +82,16 @@ def choose_action(state, epsilon):
 
 
 def update_q_table(state, action, reward, new_state, done):
-    """Q-learning (Bellman) update. Returns how much the Q-value changed."""
+    """Q-learning (Bellman) update."""
     old_value = q_table[state, action]
     # A terminal state has no future, so don't bootstrap from it.
     max_future_q = 0.0 if done else np.max(q_table[new_state, :])
     new_value = old_value + learning_rate * (reward + discount_factor * max_future_q - old_value)
     q_table[state, action] = new_value
-    return abs(new_value - old_value)
 
 
 speed = 20  # mouse steps per second in the window
+clock = pygame.time.Clock()
 
 
 def draw(screen, font, state, text):
@@ -116,7 +116,7 @@ def draw(screen, font, state, text):
     label = font.render(f"{text}   speed {speed}/s", True, "white", "black")
     screen.blit(label, (8, maze_rows * unitSize - label.get_height() - 8))
     pygame.display.flip()
-    pygame.time.Clock().tick(speed)
+    clock.tick(speed)
     return True
 
 
@@ -144,13 +144,14 @@ def train(screen=None, font=None):
 
 
 def run_greedy(screen=None, font=None):
-    """Follows the learned policy from the start. Returns (list of states visited, reached_cheese)."""
+    """Follows the learned policy from the start. Returns (list of states visited, reached_cheese).
+    reached_cheese is None if the user closed the window."""
     state, path = start_state, [start_state]
     for _ in range(max_steps):
         state, _, done = step(state, greedy_action(state))
         path.append(state)
         if screen and not draw(screen, font, state, "Learned path (no random moves)"):
-            break
+            return path, None
         if done:
             return path, True
     return path, False
@@ -172,6 +173,8 @@ def main():
     # train()
 
     path, reached = run_greedy(screen, font)
+    if reached is None:
+        return
     print("\n" + ("Reached the cheese" if reached else "Did NOT reach the cheese") + f" in {len(path) - 1} steps (optimal is 10):")
     print(" -> ".join(str(state_to_cell(s)) for s in path))
 
