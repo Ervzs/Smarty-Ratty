@@ -30,7 +30,7 @@ min_epsilon = 0.01         # never stop exploring completely
 epsilon_decay_rate = 0.05  # per episode; epsilon is ~0.09 by episode 50
 
 episode_time_limit = 10    # seconds; an episode that takes longer counts as a timeout
-FPS = 10                   # frames per second; the mouse makes one move per frame
+FPS = 7                   # frames per second; the mouse makes one move per frame
 
 # --- Rewards ---
 REWARD_CHEESE = 100
